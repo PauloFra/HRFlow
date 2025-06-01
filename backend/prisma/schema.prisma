@@ -1,0 +1,699 @@
+// HRFlow Database Schema - Sistema de Gestão de RH
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================
+// CORE - Usuários e Autenticação
+// ================================
+
+enum UserRole {
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_ACTIVATION
+}
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  email             String     @unique
+  username          String?    @unique
+  passwordHash      String
+  role              UserRole   @default(EMPLOYEE)
+  status            UserStatus @default(PENDING_ACTIVATION)
+  lastLoginAt       DateTime?
+  emailVerifiedAt   DateTime?
+  twoFactorEnabled  Boolean    @default(false)
+  twoFactorSecret   String?
+  
+  // Relacionamentos
+  employee          Employee?
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  
+  // Timestamps
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  token       String    @unique
+  userId      String    @db.Uuid
+  expiresAt   DateTime
+  isRevoked   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
+}
+
+// ================================
+// EMPLOYEE - Gestão de Funcionários
+// ================================
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  OTHER
+}
+
+model Company {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  cnpj            String       @unique
+  email           String?
+  phone           String?
+  website         String?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String       @default("Brasil")
+  
+  // Configurações
+  workingHours    Json
+  timezone        String       @default("America/Sao_Paulo")
+  
+  // Relacionamentos
+  departments     Department[]
+  employees       Employee[]
+  locations       Location[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("companies")
+}
+
+model Department {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  code            String?      @unique
+  companyId       String       @db.Uuid
+  managerId       String?      @db.Uuid
+  
+  // Relacionamentos
+  company         Company      @relation(fields: [companyId], references: [id])
+  manager         Employee?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees       Employee[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("departments")
+}
+
+model Position {
+  id              String       @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?
+  level           String?
+  salaryRange     Json?
+  
+  // Relacionamentos
+  employees       Employee[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("positions")
+}
+
+model Employee {
+  id                String         @id @default(uuid()) @db.Uuid
+  employeeNumber    String         @unique
+  userId            String         @unique @db.Uuid
+  companyId         String         @db.Uuid
+  departmentId      String?        @db.Uuid
+  positionId        String?        @db.Uuid
+  managerId         String?        @db.Uuid
+  
+  // Dados Pessoais
+  firstName         String
+  lastName          String
+  fullName          String
+  cpf               String         @unique
+  rg                String?
+  birthDate         DateTime?
+  gender            Gender?
+  maritalStatus     MaritalStatus?
+  nationality       String?        @default("Brasileira")
+  
+  // Contato
+  personalEmail     String?
+  phone             String?
+  cellPhone         String?
+  emergencyContact  Json?
+  
+  // Endereço
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  country           String?        @default("Brasil")
+  
+  // Dados Profissionais
+  hireDate          DateTime
+  terminationDate   DateTime?
+  status            EmployeeStatus @default(ACTIVE)
+  workSchedule      Json?
+  salary            Decimal?       @db.Decimal(10,2)
+  salaryType        String?
+  
+  // Documentos e Arquivos
+  profilePicture    String?
+  documents         Json?
+  
+  // Relacionamentos
+  user              User           @relation(fields: [userId], references: [id])
+  company           Company        @relation(fields: [companyId], references: [id])
+  department        Department?    @relation(fields: [departmentId], references: [id])
+  position          Position?      @relation(fields: [positionId], references: [id])
+  manager           Employee?      @relation("EmployeeHierarchy", fields: [managerId], references: [id])
+  subordinates      Employee[]     @relation("EmployeeHierarchy")
+  managedDepartments Department[]  @relation("DepartmentManager")
+  
+  // Time Tracking
+  timeEntries       TimeEntry[]
+  workSessions      WorkSession[]
+  
+  // Leave Management
+  leaveRequests     LeaveRequest[]
+  leaveBalances     LeaveBalance[]
+  
+  // Communication
+  newsArticles      NewsArticle[]
+  comments          Comment[]
+  reactions         Reaction[]
+  
+  // Events
+  organizedEvents   Event[]
+  eventAttendances  EventAttendee[]
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  @@map("employees")
+}
+
+// ================================
+// TIME TRACKING - Ponto Eletrônico
+// ================================
+
+enum TimeEntryType {
+  CLOCK_IN
+  CLOCK_OUT
+  BREAK_START
+  BREAK_END
+}
+
+enum TimeEntryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_JUSTIFICATION
+}
+
+model Location {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  address         String
+  latitude        Decimal      @db.Decimal(10,8)
+  longitude       Decimal      @db.Decimal(11,8)
+  radius          Int          @default(100)
+  companyId       String       @db.Uuid
+  isActive        Boolean      @default(true)
+  
+  company         Company      @relation(fields: [companyId], references: [id])
+  timeEntries     TimeEntry[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("locations")
+}
+
+model TimeEntry {
+  id              String          @id @default(uuid()) @db.Uuid
+  employeeId      String          @db.Uuid
+  locationId      String?         @db.Uuid
+  type            TimeEntryType
+  timestamp       DateTime
+  
+  // Geolocalização
+  latitude        Decimal?        @db.Decimal(10,8)
+  longitude       Decimal?        @db.Decimal(11,8)
+  accuracy        Float?
+  
+  // Status e Validação
+  status          TimeEntryStatus @default(PENDING)
+  isManual        Boolean         @default(false)
+  justification   String?
+  approvedBy      String?         @db.Uuid
+  approvedAt      DateTime?
+  
+  // Metadados
+  ipAddress       String?
+  userAgent       String?
+  deviceInfo      Json?
+  
+  // Relacionamentos
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  location        Location?       @relation(fields: [locationId], references: [id])
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@map("time_entries")
+}
+
+model WorkSession {
+  id              String       @id @default(uuid()) @db.Uuid
+  employeeId      String       @db.Uuid
+  date            DateTime     @db.Date
+  
+  // Horários
+  clockIn         DateTime?
+  clockOut        DateTime?
+  breakStart      DateTime?
+  breakEnd        DateTime?
+  
+  // Cálculos
+  workedHours     Decimal?     @db.Decimal(4,2)
+  expectedHours   Decimal?     @db.Decimal(4,2)
+  overtimeHours   Decimal?     @db.Decimal(4,2)
+  breakDuration   Int?
+  
+  // Status
+  isComplete      Boolean      @default(false)
+  hasIrregularity Boolean      @default(false)
+  notes           String?
+  
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([employeeId, date])
+  @@map("work_sessions")
+}
+
+// ================================
+// LEAVE MANAGEMENT - Gestão de Férias
+// ================================
+
+enum LeaveType {
+  VACATION
+  SICK_LEAVE
+  PERSONAL_LEAVE
+  MATERNITY_LEAVE
+  PATERNITY_LEAVE
+  BEREAVEMENT
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model LeaveBalance {
+  id              String       @id @default(uuid()) @db.Uuid
+  employeeId      String       @db.Uuid
+  year            Int
+  leaveType       LeaveType
+  
+  // Saldos
+  totalDays       Decimal      @db.Decimal(4,2) @default(0)
+  usedDays        Decimal      @db.Decimal(4,2) @default(0)
+  remainingDays   Decimal      @db.Decimal(4,2) @default(0)
+  pendingDays     Decimal      @db.Decimal(4,2) @default(0)
+  
+  // Relacionamentos
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([employeeId, year, leaveType])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id              String       @id @default(uuid()) @db.Uuid
+  employeeId      String       @db.Uuid
+  leaveType       LeaveType
+  
+  // Período
+  startDate       DateTime     @db.Date
+  endDate         DateTime     @db.Date
+  totalDays       Decimal      @db.Decimal(4,2)
+  
+  // Detalhes
+  reason          String?
+  status          LeaveStatus  @default(PENDING)
+  urgency         String?
+  
+  // Aprovação
+  approvedBy      String?      @db.Uuid
+  approvedAt      DateTime?
+  rejectionReason String?
+  
+  // Documentos
+  attachments     Json?
+  
+  // Relacionamentos
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("leave_requests")
+}
+
+// ================================
+// COMMUNICATION - Comunicação Interna
+// ================================
+
+enum NewsCategory {
+  GENERAL
+  ANNOUNCEMENT
+  EVENT
+  POLICY
+  TRAINING
+  BENEFITS
+  SAFETY
+}
+
+enum NewsStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  ARCHIVED
+}
+
+model NewsArticle {
+  id              String       @id @default(uuid()) @db.Uuid
+  title           String
+  content         String
+  excerpt         String?
+  category        NewsCategory @default(GENERAL)
+  status          NewsStatus   @default(DRAFT)
+  
+  // Autor
+  authorId        String       @db.Uuid
+  
+  // Publicação
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  isPinned        Boolean      @default(false)
+  
+  // Configurações
+  allowComments   Boolean      @default(true)
+  targetRoles     String[]
+  
+  // Arquivos
+  featuredImage   String?
+  attachments     Json?
+  
+  // Relacionamentos
+  author          Employee     @relation(fields: [authorId], references: [id])
+  comments        Comment[]
+  reactions       Reaction[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("news_articles")
+}
+
+model Comment {
+  id              String       @id @default(uuid()) @db.Uuid
+  content         String
+  authorId        String       @db.Uuid
+  newsArticleId   String       @db.Uuid
+  parentId        String?      @db.Uuid
+  
+  // Status
+  isEdited        Boolean      @default(false)
+  isDeleted       Boolean      @default(false)
+  
+  // Relacionamentos
+  author          Employee     @relation(fields: [authorId], references: [id])
+  newsArticle     NewsArticle  @relation(fields: [newsArticleId], references: [id], onDelete: Cascade)
+  parent          Comment?     @relation("CommentReplies", fields: [parentId], references: [id])
+  replies         Comment[]    @relation("CommentReplies")
+  reactions       Reaction[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("comments")
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  LAUGH
+  THUMBS_UP
+  THUMBS_DOWN
+}
+
+model Reaction {
+  id              String       @id @default(uuid()) @db.Uuid
+  type            ReactionType
+  userId          String       @db.Uuid
+  newsArticleId   String?      @db.Uuid
+  commentId       String?      @db.Uuid
+  
+  // Relacionamentos
+  user            Employee     @relation(fields: [userId], references: [id])
+  newsArticle     NewsArticle? @relation(fields: [newsArticleId], references: [id], onDelete: Cascade)
+  comment         Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime     @default(now())
+  
+  @@unique([userId, newsArticleId, type])
+  @@unique([userId, commentId, type])
+  @@map("reactions")
+}
+
+// ================================
+// EVENTS - Eventos e Calendário
+// ================================
+
+enum EventType {
+  MEETING
+  TRAINING
+  COMPANY_EVENT
+  HOLIDAY
+  BIRTHDAY
+  OTHER
+}
+
+enum EventStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Event {
+  id              String       @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?
+  type            EventType    @default(OTHER)
+  status          EventStatus  @default(SCHEDULED)
+  
+  // Data e Hora
+  startDate       DateTime
+  endDate         DateTime
+  isAllDay        Boolean      @default(false)
+  recurrence      Json?
+  
+  // Local
+  location        String?
+  isOnline        Boolean      @default(false)
+  meetingLink     String?
+  
+  // Organizador
+  organizerId     String       @db.Uuid
+  
+  // Configurações
+  isPublic        Boolean      @default(true)
+  maxAttendees    Int?
+  requiresApproval Boolean     @default(false)
+  
+  // Relacionamentos
+  organizer       Employee     @relation(fields: [organizerId], references: [id])
+  attendees       EventAttendee[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("events")
+}
+
+enum AttendeeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  MAYBE
+}
+
+model EventAttendee {
+  id              String       @id @default(uuid()) @db.Uuid
+  eventId         String       @db.Uuid
+  employeeId      String       @db.Uuid
+  status          AttendeeStatus @default(PENDING)
+  respondedAt     DateTime?
+  notes           String?
+  
+  // Relacionamentos
+  event           Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([eventId, employeeId])
+  @@map("event_attendees")
+}
+
+// ================================
+// NOTIFICATIONS - Notificações
+// ================================
+
+enum NotificationType {
+  LEAVE_REQUEST
+  TIME_ENTRY
+  NEWS_ARTICLE
+  EVENT
+  COMMENT
+  MENTION
+  SYSTEM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+model Notification {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @db.Uuid
+  type            NotificationType
+  title           String
+  message         String
+  status          NotificationStatus @default(UNREAD)
+  
+  // Dados adicionais
+  metadata        Json?
+  actionUrl       String?
+  
+  // Relacionamentos
+  user            User             @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  readAt          DateTime?
+  
+  @@map("notifications")
+}
+
+// ================================
+// AUDIT - Auditoria e Logs
+// ================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PASSWORD_CHANGE
+  ROLE_CHANGE
+  EXPORT
+  IMPORT
+}
+
+model AuditLog {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String?      @db.Uuid
+  action          AuditAction
+  resource        String
+  resourceId      String?
+  
+  // Detalhes
+  oldValues       Json?
+  newValues       Json?
+  metadata        Json?
+  
+  // Request info
+  ipAddress       String?
+  userAgent       String?
+  endpoint        String?
+  
+  // Relacionamentos
+  user            User?        @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  
+  @@map("audit_logs")
+}
+
+// ================================
+// SYSTEM - Configurações do Sistema
+// ================================
+
+model SystemSetting {
+  id              String       @id @default(uuid()) @db.Uuid
+  key             String       @unique
+  value           Json
+  description     String?
+  isPublic        Boolean      @default(false)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("system_settings")
+} 
