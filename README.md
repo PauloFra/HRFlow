@@ -1,6 +1,173 @@
-# HRFlow - Sistema de Gestão de RH
+# 🚀 HRFlow - Sistema de Gestão de RH
 
-Um sistema completo de recursos humanos desenvolvido com foco em produtividade e experiência do usuário.
+Um sistema completo de gestão de recursos humanos com foco em segurança, escalabilidade e experiência do usuário.
+
+## 📋 Funcionalidades Principais
+
+- **Autenticação e Autorização**
+  - Login seguro com JWT
+  - Autenticação em dois fatores (2FA)
+  - Controle de acesso baseado em papéis (RBAC)
+  - Recuperação de senha segura
+
+- **Gestão de Funcionários**
+  - Cadastro completo de funcionários
+  - Gerenciamento de departamentos e equipes
+  - Histórico de alterações e auditoria
+  - Upload de documentos e fotos de perfil
+
+- **Perfis de Usuário**
+  - Edição de perfil completa
+  - Upload de fotos com MinIO
+  - Configurações de preferências
+  - Histórico de atividades
+
+- **Auditoria e Segurança**
+  - Logging de todas as ações
+  - Interface para visualização de logs
+  - Relatórios de auditoria
+  - Proteção contra vulnerabilidades comuns
+
+## 🛠️ Tecnologias
+
+### Backend
+- Node.js + Express
+- TypeScript
+- Prisma ORM
+- PostgreSQL
+- Redis
+- JWT Authentication
+- Clean Architecture
+
+### Frontend
+- Next.js 14 (App Router)
+- React 18
+- TypeScript
+- Tailwind CSS
+- Zustand (Estado)
+- React Hook Form + Zod (Validação)
+
+### Infraestrutura
+- Docker + Docker Compose
+- GitHub Actions (CI/CD)
+- MinIO (Armazenamento)
+- Kafka (Mensageria)
+
+## 🚦 Requisitos
+
+- Node.js 18+
+- Docker e Docker Compose
+- PostgreSQL 15
+- Redis 7
+
+## 🏗️ Estrutura do Projeto
+
+```
+/
+├── backend/               # Aplicação backend
+│   ├── prisma/            # Schema e migrações do Prisma
+│   └── src/               # Código fonte
+│       ├── config/        # Configurações
+│       ├── domains/       # Entidades e regras de negócio
+│       ├── interfaces/    # Controladores e rotas
+│       ├── useCases/      # Casos de uso
+│       └── repositories/  # Repositórios de dados
+│
+├── frontend/              # Aplicação frontend
+│   ├── public/            # Arquivos estáticos
+│   └── src/               # Código fonte
+│       ├── app/           # Páginas e rotas (App Router)
+│       ├── components/    # Componentes React
+│       ├── hooks/         # Custom hooks
+│       └── lib/           # Utilitários e serviços
+│
+├── docker/                # Configuração Docker
+└── docs/                  # Documentação
+```
+
+## 🏁 Como Iniciar
+
+### Desenvolvimento
+
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/seu-usuario/hrflow.git
+   cd hrflow
+   ```
+
+2. Instale as dependências do backend:
+   ```bash
+   cd backend
+   npm install
+   ```
+
+3. Instale as dependências do frontend:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+4. Configure as variáveis de ambiente:
+   ```bash
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env.local
+   ```
+
+5. Inicie os serviços com Docker:
+   ```bash
+   docker-compose up -d
+   ```
+
+6. Execute as migrações do banco de dados:
+   ```bash
+   cd backend
+   npx prisma migrate dev
+   ```
+
+7. Inicie o backend:
+   ```bash
+   cd backend
+   npm run dev
+   ```
+
+8. Em outro terminal, inicie o frontend:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+9. Acesse o aplicativo em `http://localhost:3000`
+
+### Produção
+
+1. Configure as variáveis de ambiente para produção
+2. Execute:
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+## 👨‍💻 Desenvolvimento
+
+### Convenções de Código
+
+- Siga os padrões ESLint e Prettier configurados
+- Use TypeScript com tipagem estrita
+- Escreva testes para funcionalidades críticas
+
+### Fluxo de Trabalho Git
+
+1. Crie uma branch a partir de `main` para cada feature/fix
+2. Nomeie a branch de acordo com o tipo: `feature/nome-feature` ou `fix/nome-fix`
+3. Faça commit seguindo a convenção Conventional Commits
+4. Abra um Pull Request para `main`
+
+## 📝 Licença
+
+Este projeto está licenciado sob a licença [MIT](LICENSE).
+
+---
+
+Desenvolvido com ❤️ para gerenciamento eficiente de recursos humanos.
 
 ## 💭 Sobre o Projeto
 

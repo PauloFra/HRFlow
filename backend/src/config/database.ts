@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { env } from './env';
+import { log } from './logger';
+import PrismaService from '@/services/prisma.service';
 
 declare global {
   var __prisma: PrismaClient | undefined;
@@ -30,9 +32,9 @@ if (env.NODE_ENV === 'development') {
 export async function connectDatabase(): Promise<void> {
   try {
     await prisma.$connect();
-    console.log('✅ Banco de dados conectado com sucesso');
+    log.info('✅ Banco de dados conectado com sucesso');
   } catch (error) {
-    console.error('❌ Erro ao conectar com o banco de dados:', error);
+    log.error('❌ Erro ao conectar com o banco de dados:', { error: (error as Error).message });
     throw error;
   }
 }
@@ -43,9 +45,11 @@ export async function connectDatabase(): Promise<void> {
 export async function disconnectDatabase(): Promise<void> {
   try {
     await prisma.$disconnect();
-    console.log('✅ Banco de dados desconectado com sucesso');
+    // Também desconectar o singleton do serviço Prisma
+    await PrismaService.getInstance().disconnect();
+    log.info('✅ Banco de dados desconectado com sucesso');
   } catch (error) {
-    console.error('❌ Erro ao desconectar do banco de dados:', error);
+    log.error('❌ Erro ao desconectar do banco de dados:', { error: (error as Error).message });
     throw error;
   }
 }
@@ -58,7 +62,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
     await prisma.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    console.error('❌ Banco de dados não está saudável:', error);
+    log.error('❌ Banco de dados não está saudável:', { error: (error as Error).message });
     return false;
   }
 }

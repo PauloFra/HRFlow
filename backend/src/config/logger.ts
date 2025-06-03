@@ -1,6 +1,14 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { env } from './env';
+import fs from 'fs';
+import path from 'path';
+
+// Garantir que o diretório de logs exista
+const logDir = path.resolve(process.cwd(), env.LOG_FILE_PATH || './logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 /**
  * Configuração de formatos para logs

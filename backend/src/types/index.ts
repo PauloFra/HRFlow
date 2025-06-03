@@ -2,10 +2,10 @@
  * Shared TypeScript types for the HRFlow backend
  */
 
-import { User, Employee, UserRole, UserStatus, EmployeeStatus } from '@prisma/client';
+import { User, Employee, UserRole, UserStatus, EmployeeStatus, Gender, MaritalStatus } from '@prisma/client';
 
 // Re-export Prisma types
-export { UserRole, UserStatus, EmployeeStatus } from '@prisma/client';
+export { UserRole, UserStatus, EmployeeStatus, Gender, MaritalStatus } from '@prisma/client';
 
 // ================================
 // API Response Types
@@ -288,15 +288,12 @@ export interface NewsArticleWithAuthor {
 // ================================
 
 export class AppError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
+  public readonly statusCode: number;
 
-  constructor(message: string, statusCode = 500, isOperational = true) {
+  constructor(message: string, statusCode = 400) {
     super(message);
     this.statusCode = statusCode;
-    this.isOperational = isOperational;
-
-    Error.captureStackTrace(this, this.constructor);
+    this.name = 'AppError';
   }
 }
 
@@ -311,7 +308,7 @@ export interface ValidationError {
 // ================================
 
 export interface RequestContext {
-  userId?: string;
+  userId: string;
   employeeId?: string;
   role?: UserRole;
   ipAddress?: string;
@@ -346,6 +343,23 @@ export interface NotificationRequest {
   message: string;
   metadata?: any;
   actionUrl?: string;
+}
+
+/**
+ * Tipos de ações para auditoria
+ * Importante: Estes valores devem corresponder exatamente aos valores no schema Prisma
+ */
+export enum AuditAction {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  PASSWORD_CHANGE = 'PASSWORD_CHANGE',
+  ROLE_CHANGE = 'ROLE_CHANGE',
+  EXPORT = 'EXPORT',
+  IMPORT = 'IMPORT',
+  ACCESS = 'ACCESS'
 }
 
 // ================================
