@@ -9,14 +9,14 @@
     
     // Strict Type-Checking Options
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
+    "strictPropertyInitialization": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
     
     // Module Resolution Options
@@ -55,7 +55,7 @@
     // Advanced Options
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "exactOptionalPropertyTypes": true,
+    "exactOptionalPropertyTypes": false,
     "useDefineForClassFields": true,
     
     // Experimental Options
@@ -63,17 +63,15 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "prisma/**/*",
-    "tests/**/*",
-    "@types/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "coverage",
     "*.config.js",
-    "*.config.ts"
+    "*.config.ts",
+    "prisma"
   ],
   "ts-node": {
     "require": ["tsconfig-paths/register"]

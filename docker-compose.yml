@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: hrflow_password
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -211,6 +211,118 @@ services:
     profiles:
       - production
 
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:v2.45.3
+    container_name: hrflow-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - hrflow-network
+    profiles:
+      - monitoring
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: hrflow-grafana
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=hrflow_grafana_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3030:3000"
+    networks:
+      - hrflow-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # Node Exporter (System Metrics)
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: hrflow-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - hrflow-network
+    profiles:
+      - monitoring
+
+  # cAdvisor (Container Metrics)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: hrflow-cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - hrflow-network
+    profiles:
+      - monitoring
+      
+  # Postgres Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: hrflow-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://hrflow_user:hrflow_password@postgres:5432/hrflow_db?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - hrflow-network
+    depends_on:
+      - postgres
+    profiles:
+      - monitoring
+      
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: hrflow-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: "hrflow_redis_password"
+    ports:
+      - "9121:9121"
+    networks:
+      - hrflow-network
+    depends_on:
+      - redis
+    profiles:
+      - monitoring
+
 # Named Volumes for Data Persistence
 volumes:
   postgres_data:
@@ -227,6 +339,10 @@ volumes:
     driver: local
   backend_uploads:
     driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
 
 # Custom Network
 networks:
@@ -234,4 +350,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16 
+        - subnet: 172.30.0.0/16 
