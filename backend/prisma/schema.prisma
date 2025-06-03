@@ -31,17 +31,27 @@ model User {
   id                String     @id @default(uuid()) @db.Uuid
   email             String     @unique
   username          String?    @unique
-  passwordHash      String
+  password          String
   role              UserRole   @default(EMPLOYEE)
-  status            UserStatus @default(PENDING_ACTIVATION)
+  status            UserStatus @default(ACTIVE)
   lastLoginAt       DateTime?
   emailVerifiedAt   DateTime?
   twoFactorEnabled  Boolean    @default(false)
   twoFactorSecret   String?
   
+  // Informações de perfil
+  firstName         String?
+  lastName          String?
+  fullName          String?
+  avatarUrl         String?
+  bio               String?    @db.Text
+  preferredLanguage String?
+  timezone          String?
+  
   // Relacionamentos
   employee          Employee?
   refreshTokens     RefreshToken[]
+  passwordResets    PasswordReset[]
   auditLogs         AuditLog[]
   notifications     Notification[]
   
@@ -63,6 +73,18 @@ model RefreshToken {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("refresh_tokens")
+}
+
+model PasswordReset {
+  id          String    @id @default(uuid()) @db.Uuid
+  token       String    @unique
+  userId      String    @db.Uuid
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("password_resets")
 }
 
 // ================================
@@ -654,6 +676,7 @@ enum AuditAction {
   ROLE_CHANGE
   EXPORT
   IMPORT
+  ACCESS
 }
 
 model AuditLog {
