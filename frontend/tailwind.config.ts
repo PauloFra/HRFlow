@@ -80,6 +80,12 @@ const config: Config = {
           foreground: '#64748b',
         },
         border: '#e2e8f0',
+        ring: '#2563eb',
+        input: '#e2e8f0',
+        'ring-offset': '#ffffff',
+      },
+      ringOffsetColor: {
+        background: '#ffffff',
       },
       borderRadius: {
         lg: 'var(--radius)',

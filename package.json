@@ -42,7 +42,10 @@
     "db:reset": "cd backend && npx prisma migrate reset --force",
     "db:studio": "cd backend && npx prisma studio",
     "clean": "rm -rf node_modules backend/node_modules frontend/node_modules backend/dist frontend/.next",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "test:all": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",

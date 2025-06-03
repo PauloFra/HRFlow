@@ -21,7 +21,8 @@ COPY prisma ./prisma/
 FROM base AS deps
 
 # Install all dependencies including devDependencies
-RUN npm ci --include=dev
+# Use --ignore-scripts to avoid running husky install
+RUN npm install --include=dev --ignore-scripts
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -97,7 +98,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Use --ignore-scripts to avoid running husky install
+RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder --chown=hrflow:nodejs /app/dist ./dist

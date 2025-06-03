@@ -13,7 +13,28 @@ COPY package*.json ./
 FROM base AS deps
 
 # Instala todas as dependências incluindo devDependencies
-RUN npm ci
+# Use --ignore-scripts para evitar executar husky install
+RUN npm install --ignore-scripts
+
+# ================================
+# Estágio de desenvolvimento
+# ================================
+FROM base AS development
+
+# Instala curl para health checks
+RUN apk add --no-cache curl
+
+# Copia node_modules do estágio deps
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copia todo o código-fonte
+COPY . .
+
+# Expõe a porta da aplicação
+EXPOSE 3000
+
+# Comando para iniciar a aplicação em modo de desenvolvimento
+CMD ["npm", "run", "dev"]
 
 # ================================
 # Estágio de build
